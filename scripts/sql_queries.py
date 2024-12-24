@@ -17,14 +17,14 @@ def execute_queries(query):
 
 def get_unique_imsi_count():
     query = """
-                SELECT COUNT(DISTINCT "IMSI") AS unique_imsi_count
+                SELECT COUNT(DISTINCT "IMSI") AS "Unique IMSI Count"
                 FROM xdr_data;
             """
     return execute_queries(query)
 
 def get_average_duration():
     query = """
-                SELECT AVG("Dur. (ms)") AS average_duration
+                SELECT AVG("Dur. (ms)") AS "Average Duration"
                 FROM xdr_data
                 WHERE "Dur. (ms)" IS NOT NULL;
             """
@@ -33,11 +33,11 @@ def get_average_duration():
 def get_total_data_usage():
     query = """
                 SELECT "IMSI", 
-                    SUM("Total UL (Bytes)") AS total_ul_bytes, 
-                    SUM("Total DL (Bytes)") AS total_dl_bytes
+                    SUM("Total UL (Bytes)") AS "Total UL Bytes", 
+                    SUM("Total DL (Bytes)") AS "Total DL Bytes"
                 FROM xdr_data
                 GROUP BY "IMSI"
-                ORDER BY total_dl_bytes DESC
+                ORDER BY "Total DL Bytes" DESC
                 LIMIT 10;
             """
     return execute_queries(query)
@@ -45,11 +45,11 @@ def get_total_data_usage():
 def get_top_10_handsets():
     query = """
                 SELECT 
-                    "Handset Type" AS Handset,
-                    COUNT(*) AS UsageCount
+                    "Handset Type" AS "Handset",
+                    COUNT(*) AS "Usage Count"
                 FROM xdr_data
                 GROUP BY "Handset Type"
-                ORDER BY UsageCount DESC
+                ORDER BY "Usage Count" DESC
                 LIMIT 10;
             """
     return execute_queries(query)
@@ -58,10 +58,10 @@ def get_top_3_manufacturers():
     query = """
                 SELECT 
                     "Handset Manufacturer",
-                    COUNT(*) AS UsageCount
+                    COUNT(*) AS "Usage Count"
                 FROM xdr_data
                 GROUP BY "Handset Manufacturer"
-                ORDER BY UsageCount DESC
+                ORDER BY "Usage Count" DESC
                 LIMIT 3;
             """
     return execute_queries(query)
@@ -79,26 +79,26 @@ def get_top_handsets_by_manufacturers():
                 SELECT 
                     "Handset Manufacturer",
                     "Handset Type",
-                    COUNT(*) AS UsageCount
+                    COUNT(*) AS "Usage Count"
                 FROM xdr_data
                 WHERE "Handset Manufacturer" IN (SELECT "Handset Manufacturer" FROM TopManufacturers)
                 GROUP BY "Handset Manufacturer", "Handset Type"
-                ORDER BY "Handset Manufacturer", UsageCount DESC;
+                ORDER BY "Handset Manufacturer", "Usage Count" DESC;
             """
     return execute_queries(query)
 
 def get_total_data_usage_by_user():
     query = """
                 SELECT 
-                    "MSISDN" AS UserID,
-                    COUNT(*) AS NumberOfSessions,
-                    SUM("Dur. (ms)") AS TotalSessionDuration,
-                    SUM("Total UL (Bytes)") AS TotalUploadData,
-                    SUM("Total DL (Bytes)") AS TotalDownloadData,
-                    SUM("Total UL (Bytes)" + "Total DL (Bytes)") AS TotalDataVolume
+                    "MSISDN/Number" AS "MSISDN",
+                    COUNT(*) AS "Session Frequency",
+                    SUM("Dur. (ms)") AS "Total Session Duration",
+                    SUM("Total UL (Bytes)") AS "Total UL (Bytes)",
+                    SUM("Total DL (Bytes)") AS "Total DL (Bytes)",
+                    SUM("Total UL (Bytes)" + "Total DL (Bytes)") AS "Total Data (Bytes)"
                 FROM xdr_data
-                GROUP BY "MSISDN"
-                ORDER BY TotalDataVolume DESC;
+                GROUP BY "MSISDN/Number"
+                ORDER BY "Total Data (Bytes)" DESC;
             """
     return execute_queries(query)
 
@@ -106,10 +106,10 @@ def get_avg_duration_by_location():
     query = """
                 SELECT 
                     "Last Location Name",
-                    AVG("Dur. (ms)") AS AvgDuration
+                    AVG("Dur. (ms)") AS "Avg Duration"
                 FROM xdr_data
                 GROUP BY "Last Location Name"
-                ORDER BY AvgDuration DESC;
+                ORDER BY "Avg Duration" DESC;
             """
     return execute_queries(query)
 
@@ -117,10 +117,10 @@ def get_avg_duration_by_manufacturer():
     query = """
                 SELECT 
                     "Handset Manufacturer",
-                    AVG("Dur. (ms)") AS AvgDuration
+                    AVG("Dur. (ms)") AS "Avg Duration"
                 FROM xdr_data
                 GROUP BY "Handset Manufacturer"
-                ORDER BY AvgDuration DESC;
+                ORDER BY "Avg Duration" DESC;
             """
     return execute_queries(query)
 
@@ -128,20 +128,20 @@ def get_avg_duration_by_handset_type():
     query = """
                 SELECT 
                     "Handset Type",
-                    AVG("Dur. (ms)") AS AvgDuration
+                    AVG("Dur. (ms)") AS "Avg Duration"
                 FROM xdr_data
                 GROUP BY "Handset Type"
-                ORDER BY AvgDuration DESC;
+                ORDER BY "Avg Duration" DESC;
             """
     return execute_queries(query)
 
 def get_total_data_usage_by_application(application):
     query = f"""
                 SELECT 
-                    "MSISDN" AS UserID,
-                    "Total DL (Bytes)" + "Total UL (Bytes)" AS TotalDataVolume,
-                    "{application} UL (Bytes)" + "{application} DL (Bytes)" AS ApplicationDataVolume
+                    "MSISDN/Number" AS "UserID",
+                    "Total DL (Bytes)" + "Total UL (Bytes)" AS "Total Data (Bytes)",
+                    "{application} UL (Bytes)" + "{application} DL (Bytes)" AS "Application Data Volume"
                 FROM xdr_data
-                ORDER BY TotalDataVolume DESC;
+                ORDER BY "Total Data (Bytes)" DESC;
             """
-    return execute_queries(query).groupby('ApplicationDataVolume')['TotalDataVolume']
+    return execute_queries(query)

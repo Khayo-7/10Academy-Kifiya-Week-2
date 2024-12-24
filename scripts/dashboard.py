@@ -174,7 +174,7 @@ if not df.empty:
 
         # Display K-means clustering visualization
         st.subheader("K-Means Clustering Visualization")
-        fig2 = plot_kmeans_clusters(df_clustered)
+        fig2 = plot_clusters(df_clustered)
         st.pyplot(fig2)
 
         # Visualize the top applications based on user engagement
