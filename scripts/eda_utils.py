@@ -2,10 +2,10 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-def calculate_user_statistics(df, imsi_col):
+def calculate_user_statistics(dataframe, imsi_col):
     
-    unique_users_count = df[imsi_col].nunique()
-    total_records = df.shape[0]
+    unique_users_count = dataframe[imsi_col].nunique()
+    total_records = dataframe.shape[0]
     avg_records_per_user = total_records / unique_users_count
     
     return {
@@ -123,12 +123,12 @@ def apply_pca(dataframe, columns, n_components):
     
     return pca_dataframe, pca.explained_variance_ratio_
 
-def calculate_app_usage(df):
-    google_usage = df[["Google UL (Bytes)", "Google DL (Bytes)"]].sum()
-    youtube_usage = df[["Youtube UL (Bytes)", "Youtube DL (Bytes)"]].sum()
-    email_usage = df[["Email UL (Bytes)", "Email DL (Bytes)"]].sum()
-    netflix_usage = df[["Netflix UL (Bytes)", "Netflix DL (Bytes)"]].sum()
-    gaming_usage = df[["Gaming UL (Bytes)", "Gaming DL (Bytes)"]].sum()
+def calculate_app_usage(dataframe):
+    google_usage = dataframe[["Google UL (Bytes)", "Google DL (Bytes)"]].sum()
+    youtube_usage = dataframe[["Youtube UL (Bytes)", "Youtube DL (Bytes)"]].sum()
+    email_usage = dataframe[["Email UL (Bytes)", "Email DL (Bytes)"]].sum()
+    netflix_usage = dataframe[["Netflix UL (Bytes)", "Netflix DL (Bytes)"]].sum()
+    gaming_usage = dataframe[["Gaming UL (Bytes)", "Gaming DL (Bytes)"]].sum()
 
     app_data = pd.DataFrame({
         'App': ['Google', 'Youtube', 'Netflix', 'Email', 'Gaming'],
@@ -142,18 +142,18 @@ def calculate_app_usage(df):
 
     return app_data
 
-def calculate_top_locations(df, n=10):
+def calculate_top_locations(dataframe, n=10):
     location_usage = (
-        df.groupby("Last Location Name")[["Total DL (Bytes)", "Total UL (Bytes)"]]
+        dataframe.groupby("Last Location Name")[["Total DL (Bytes)", "Total UL (Bytes)"]]
         .sum()
         .sort_values("Total DL (Bytes)", ascending=False)
         .head(n)
     )
     return location_usage
 
-def calculate_user_stats(df):
-    unique_users_count = df["IMSI"].nunique()
-    total_records = df.shape[0]
+def calculate_user_stats(dataframe):
+    unique_users_count = dataframe["IMSI"].nunique()
+    total_records = dataframe.shape[0]
     avg_records_per_user = total_records / unique_users_count
     return {
         "Unique Users Count": unique_users_count,
@@ -162,7 +162,7 @@ def calculate_user_stats(df):
     }
 
 def identify_outliers(data, column, threshold=1.5):
-    
+
     q1 = data[column].quantile(0.25)
     q3 = data[column].quantile(0.75)
     iqr = q3 - q1
@@ -183,3 +183,25 @@ def group_and_compute_engagement(dataframe):
     ).reset_index().rename(columns={'Total Session Duration Decile': 'Total Session Duration Decile', 
                                     'Total_Users': 'Total Users', 'Avg_Data_Volume': 'Avg Data Volume', 
                                     'Median_Data_Volume': 'Median Data Volume'})
+
+def compute_top_bottom_frequent(dataframe, column_name, top_n=10):
+    """
+    Computes and lists the top, bottom, and most frequent values for a specified column.
+    
+    Args:
+    - dataframe (DataFrame): The dataframe containing the data.
+    - column_name (str): The column to analyze.
+    - top_n (int): Number of top/bottom and most frequent values to list.
+    
+    Returns:
+    - dict: Top, bottom, and most frequent values.
+    """
+    top_values = dataframe[column_name].nlargest(top_n)
+    bottom_values = dataframe[column_name].nsmallest(top_n)
+    most_frequent = dataframe[column_name].mode().head(top_n)  # Mode values
+    
+    return {
+        "Top": top_values,
+        "Bottom": bottom_values,
+        "Most Frequent": most_frequent
+    }

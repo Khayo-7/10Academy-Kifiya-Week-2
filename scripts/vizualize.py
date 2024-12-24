@@ -232,3 +232,73 @@ def plot_scatter_outliers(data, x_column, y_column, xlabel, ylabel, title="Outli
     ax.grid(alpha=0.5)
     
     return fig
+def plot_distributions(dataframe, column, category, title):
+    """
+    Generates a visually appealing boxplot to illustrate the distribution of a numeric column across different categories.
+    
+    Args:
+    - dataframe (DataFrame): The dataframe containing the data to be analyzed.
+    - column (str): The name of the numeric column to be plotted (e.g., 'Average Throughput').
+    - category (str): The name of the categorical column to group the data by (e.g., 'Handset Type').
+    - title (str): The title to be displayed on the plot.
+    """
+    fig, ax = plt.subplots(figsize=(14, 8))
+    sns.boxplot(data=dataframe, x=category, y=column, palette='viridis', ax=ax)
+    ax.set_title(title, fontsize=16)
+    ax.set_xlabel(category, fontsize=12)
+    ax.set_ylabel(column, fontsize=12)
+    plt.xticks(rotation=45, fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.tight_layout()
+    return fig
+
+def plot_distributions_by_handset(dataframe):
+    """
+    Generates a visually appealing boxplot to illustrate the distribution of a numeric column across different categories.
+    
+    Args:
+    - dataframe (DataFrame): The dataframe containing the data to be analyzed.
+    """
+
+    fig, axs = plt.subplots(3, 1, figsize=(14, 18))
+    
+    # Distribution of average throughput per handset type
+    sns.boxplot(x='Handset Type', y='Average Throughput', data=dataframe, ax=axs[0])
+    axs[0].set_title('Distribution of Average Throughput by Handset Type')
+    
+    # Distribution of average RTT per handset type
+    sns.boxplot(x='Handset Type', y='Average RTT', data=dataframe, ax=axs[1])
+    axs[1].set_title('Average RTT by Handset Type')
+    
+    # Distribution of average TCP retransmission per handset type
+    sns.boxplot(x='Handset Type', y='Average TCP Retransmission', data=dataframe, ax=axs[2])
+    axs[2].set_title('Average TCP Retransmission by Handset Type')
+
+    for ax in axs:
+        ax.set_xlabel('Handset Type', fontsize=12)
+        ax.set_ylabel('Value', fontsize=12)
+        plt.xticks(rotation=45, fontsize=12)
+        plt.yticks(fontsize=12)
+    plt.tight_layout()
+    return fig
+
+def plot_experience_distribution(data: pd.DataFrame, metric: str, category: str, top_n: int = 10):
+
+    """
+    Plots the distribution of a metric grouped by a category.
+    Args:
+        data (pd.DataFrame): Dataset for analysis.
+        metric (str): Column representing the metric to analyze.
+        category (str): Column to group by (e.g., Handset Type).
+        title (str): Title for the plot.
+    """
+
+    category_avg = data.groupby(category)[metric].mean().sort_values(ascending=False).head(top_n)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.barplot(x=category_avg.index, y=category_avg.values, palette="viridis", ax=ax)
+    ax.set_title(f"Average {metric} per {category}")
+    ax.set_ylabel(f"Average {metric}")
+    ax.set_xlabel(category)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    return fig

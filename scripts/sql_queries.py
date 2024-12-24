@@ -15,6 +15,18 @@ def execute_queries(query):
     engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
     return pd.read_sql_query(query, engine)
 
+def export_to_mysql(data, table_name):
+    """
+    Exports data to a MySQL table.
+    Args:
+        data (pd.DataFrame): DataFrame to export.
+        db_uri (str): MySQL connection URI.
+        table_name (str): Name of the MySQL table.
+    """
+    engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    with engine.connect() as connection:
+        data.to_sql(table_name, con=connection, if_exists='replace', index=False)
+
 def get_unique_imsi_count():
     query = """
                 SELECT COUNT(DISTINCT "IMSI") AS "Unique IMSI Count"
