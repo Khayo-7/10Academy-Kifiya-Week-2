@@ -11,21 +11,32 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-def execute_queries(query):
-    engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+def execute_queries(query, database_type='postgres'):
+    
+    if database_type == 'postgres':
+        engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    elif database_type == 'mysql':
+        engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:3306/{DB_NAME}")
+    else:
+        raise ValueError("Unsupported database type. Please use 'postgres' or 'mysql'.")
     return pd.read_sql_query(query, engine)
 
-def export_to_mysql(data, table_name):
+def export_to_database(data, table_name, database_type='postgres'):
     """
-    Exports data to a MySQL table.
+    Exports data to a database table.
     Args:
         data (pd.DataFrame): DataFrame to export.
-        db_uri (str): MySQL connection URI.
-        table_name (str): Name of the MySQL table.
+        table_name (str): Name of the Database table.
+        database_type (str): Type of database to export to. Defaults to 'postgres'.
     """
-    engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    if database_type == 'mysql':
+        engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:3306/{DB_NAME}")
+    else:
+        engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    
     with engine.connect() as connection:
-        data.to_sql(table_name, con=connection, if_exists='replace', index=False)
+        data.to_sql(table_name, con=connection, if_exists="replace", index=False)
+        print(f"Data exported to {table_name} table in {DB_NAME} database.")
 
 def get_unique_imsi_count():
     query = """

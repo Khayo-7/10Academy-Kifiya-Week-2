@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 from scipy.spatial.distance import euclidean
 
 def aggregate_engagement_metrics(dataframe):
@@ -196,104 +197,130 @@ def aggregate_experience_metrics(dataframe):
     
     # Compute the average throughput by summing both DL and UL throughput and taking the average
     dataframe['Average Throughput'] = (dataframe['Avg Bearer TP DL (kbps)'] + dataframe['Avg Bearer TP UL (kbps)']) / 2
-    
-    # For each user (MSISDN/Number), compute the average of the necessary metrics
+    # For each user (MSISDN/Number), compute the average of the necessary metrics and include additional columns
     aggregated_dataframe = dataframe.groupby('MSISDN/Number').agg(
         Average_TCP_Retransmission=('Average TCP Retransmission', 'mean'),
         Average_RTT=('Average RTT', 'mean'),
+        Avg_RTT_DL=('Avg RTT DL (ms)', 'mean'),
+        Avg_RTT_UL=('Avg RTT UL (ms)', 'mean'),
+        TCP_DL_Retrans_Vol=('TCP DL Retrans. Vol (Bytes)', 'mean'),
+        TCP_UL_Retrans_Vol=('TCP UL Retrans. Vol (Bytes)', 'mean'),
         Handset_Type=('Handset Type', 'first'),  # Get the most common handset type
-        Average_Throughput=('Average Throughput', 'mean')
-    ).reset_index().rename(columns=lambda x: x.replace('_', ' '))
-    
+        Average_Throughput=('Average Throughput', 'mean'),
+        Avg_Bearer_TP_DL=('Avg Bearer TP DL (kbps)', 'mean'),
+        Avg_Bearer_TP_UL=('Avg Bearer TP UL (kbps)', 'mean')
+    ).reset_index().rename(columns={
+        'Avg_RTT_DL': 'Avg RTT DL (ms)',
+        'Avg_RTT_UL': 'Avg RTT UL (ms)',
+        'TCP_DL_Retrans_Vol': 'TCP DL Retrans. Vol (Bytes)',
+        'TCP_UL_Retrans_Vol': 'TCP UL Retrans. Vol (Bytes)',
+        'Average_TCP_Retransmission': 'Average TCP Retransmission',
+        'Average_RTT': 'Average RTT',
+        'Handset_Type': 'Handset Type',
+        'Average_Throughput': 'Average Throughput',
+        'Avg_Bearer_TP_DL': 'Avg Bearer TP DL (kbps)',
+        'Avg_Bearer_TP_UL': 'Avg Bearer TP UL (kbps)'
+    })
     # Fill missing values in categorical columns with 'Unknown'
     aggregated_dataframe['Handset Type'].fillna('Unknown', inplace=True)
     # aggregated_dataframe["Handset Type"].fillna(dataframe["Handset Type"].mode()[0], inplace=True)
 
     return aggregated_dataframe
 
-
-
-
-
-
-def compute_engagement_experience_scores(data, engagement_features, experience_features, least_engaged_centroid, worst_experience_centroid):
+def compute_distance_to_centroid(dataframe, features, centroid):
     """
-    Compute engagement and experience scores based on Euclidean distance.
-    Args:
-        data (pd.DataFrame): DataFrame containing user data.
-        engagement_features (list): List of features related to engagement.
-        experience_features (list): List of features related to experience.
-        least_engaged_centroid (array): Centroid of the least engaged cluster.
-        worst_experience_centroid (array): Centroid of the worst experience cluster.
-    Returns:
-        pd.DataFrame: DataFrame with additional columns for engagement and experience scores.
+    Compute the Euclidean distance from each data point to the centroid.
     """
-    data['Engagement Score'] = data[engagement_features].apply(
-        lambda row: euclidean(row.values, least_engaged_centroid), axis=1
+    distances = np.sqrt(((dataframe[features] - centroid) ** 2).sum(axis=1))
+    return distances
+
+# Compute Engagement and Experience Scores
+def compute_scores(df_engagement, df_experience, engagement_centroid, experience_centroid, engagement_features, experience_features):
+    df_engagement["Engagement Score"] = compute_distance_to_centroid(df_engagement, engagement_features, engagement_centroid)
+    df_experience["Experience Score"] = compute_distance_to_centroid(df_experience, experience_features, experience_centroid)
+    
+    df_scores = df_engagement[["MSISDN/Number", "Engagement Score"]].merge(
+        df_experience[["MSISDN/Number", "Experience Score"]], on="MSISDN/Number"
     )
-    data['Experience Score'] = data[experience_features].apply(
-        lambda row: euclidean(row.values, worst_experience_centroid), axis=1
-    )
-    return data
-
-def compute_satisfaction_score(data):
-    """
-    Compute satisfaction score as the average of engagement and experience scores.
-    Args:
-        data (pd.DataFrame): DataFrame containing scores.
-    Returns:
-        pd.DataFrame: Sorted DataFrame with satisfaction scores.
-    """
-    data['Satisfaction Score'] = data[['Engagement Score', 'Experience Score']].mean(axis=1)
-    return data.sort_values(by='Satisfaction Score', ascending=True).head(10)
-
-def train_regression_model(data, features, target):
-    """
-    Train a regression model to predict satisfaction scores.
-    Args:
-        data (pd.DataFrame): Input data.
-        features (list): List of predictor feature columns.
-        target (str): Target column name.
-    Returns:
-        tuple: Trained model and performance metrics (RMSE, R^2).
-    """
-    X = data[features]
-    y = data[target]
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    
-    # Predictions
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    r2 = r2_score(y_test, y_pred)
-    
-    return model, {"RMSE": rmse, "R2": r2}
+    df_scores["Satisfaction Score"] = df_scores[["Engagement Score", "Experience Score"]].mean(axis=1)
+    return df_scores
 
-def perform_kmeans_on_scores(data, features, n_clusters=2):
+def find_centroid(centroids, features, method="min"):
     """
-    Perform k-means clustering on engagement and experience scores.
+    Find the centroid with the lowest or highest sum of feature values.
+
     Args:
-        data (pd.DataFrame): DataFrame with scores.
-        features (list): List of feature columns for clustering.
-        n_clusters (int): Number of clusters.
+    - centroids (pd.DataFrame or np.ndarray): The centroids to evaluate.
+    - features (list): Feature names (if DataFrame) or indices (if NumPy array).
+    - method (str): Either "min" (for lowest) or "max" (for highest).
+
     Returns:
-        pd.DataFrame: DataFrame with cluster assignments.
+    - centroid: The selected centroid based on the method.
+    - cluster: Index/identifier of the selected cluster.
     """
+    if isinstance(centroids, pd.DataFrame):
+        # Ensure the features are column names
+        scores = centroids[features].sum(axis=1)
+        cluster = scores.idxmin() if method == "min" else scores.idxmax()
+        centroid = centroids.loc[cluster]
+    elif isinstance(centroids, np.ndarray):
+        # Ensure features are column indices
+        if not all(isinstance(f, int) for f in features):
+            raise ValueError("For NumPy arrays, 'features' must be a list of integers (column indices).")
+        scores = np.sum(centroids[:, features], axis=1)
+        idx = np.argmin(scores) if method == "min" else np.argmax(scores)
+        centroid = centroids[idx]
+        cluster = idx
+    else:
+        raise TypeError("Centroids must be either a pandas DataFrame or a NumPy array.")
+    return centroid, cluster
+
+# Get Top 10 Satisfied Customers
+def get_top_customers(df_scores, n=10):
+    return df_scores.nlargest(n, "Satisfaction Score")
+
+# Build Regression Model
+def train_regression_model(df_scores, feature_columns, target_column, model="linear"):
+    X = df_scores[feature_columns]
+    y = df_scores[target_column]
+    
+    if model == "linear":
+        reg = LinearRegression()
+    elif model == "random_forest":
+        reg = RandomForestRegressor()
+    else:
+        raise ValueError("Unsupported model type")
+    
+    reg.fit(X, y)
+    return reg
+
+# Aggregate Averages by Cluster
+def aggregate_cluster_averages(data):
+    return data.groupby("Cluster").mean()
+
+def kmeans_clustering(dataframe, features, n_clusters=3, scaled=True):
+    """
+    Performs K-means clustering on the selected features.
+
+    Args:
+    - dataframe (DataFrame): The dataframe containing the features to cluster.
+    - features (list): List of column names to use for clustering.
+    - n_clusters (int): Number of clusters.
+
+    Returns:
+    - DataFrame: DataFrame with a new 'Cluster' column representing cluster assignments.
+    """
+    selected_features = dataframe[features]
+    if scaled:
+        scaler = StandardScaler()
+        selected_features = scaler.fit_transform(selected_features)
+
+    # Apply KMeans clustering
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    data['Score Cluster'] = kmeans.fit_predict(data[features])
-    return data
+    dataframe['Cluster'] = kmeans.fit_predict(selected_features)
+    
+    # Cluster descriptions based on centroids
+    cluster_centroids = pd.DataFrame(kmeans.cluster_centers_, columns=features)
 
-def aggregate_scores_by_cluster(data):
-    """
-    Aggregate satisfaction and experience scores by clusters.
-    Args:
-        data (pd.DataFrame): Data with scores and clusters.
-    Returns:
-        pd.DataFrame: Aggregated metrics per cluster.
-    """
-    return data.groupby('Score Cluster').agg({
-        'Satisfaction Score': 'mean',
-        'Experience Score': 'mean'
-    }).reset_index()
+    return dataframe, kmeans, cluster_centroids
