@@ -1,14 +1,10 @@
 import streamlit as st
 from utils.data_loaders import load_engagement_data
-from utils.plots import (
-    plot_engagement_distribution,
-    plot_engagement_boxplot,
-    plot_engagement_vs_experience
-)
+from utils.plots import plot_engagement_distribution, plot_engagement_boxplot, plot_engagement_vs_experience, plot_combined_metrics
 
-def user_engagement():
+def show_engagement():
     st.title("📊 User Engagement Analysis")
-    st.markdown("### Dive into how users engage with the system.")
+    st.markdown("### Explore User Engagement Patterns.")
     
     df_engagement = load_engagement_data()
 
@@ -30,5 +26,10 @@ def user_engagement():
     fig_comparison = plot_engagement_vs_experience(df_engagement)
     st.plotly_chart(fig_comparison)
 
+    # Combined Metrics
+    st.markdown("#### Multivariate Insights Across Metrics")
+    fig_combined_metrics = plot_combined_metrics(df_engagement)
+    st.plotly_chart(fig_combined_metrics)
+    
 if __name__ == "__main__":
-    user_engagement()
+    show_engagement()

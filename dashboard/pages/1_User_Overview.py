@@ -1,8 +1,8 @@
 import streamlit as st
+from utils.plots import plot_user_distribution, plot_user_cluster_pie
 from utils.data_loaders import load_user_data
-from utils.plots import plot_user_overview
 
-def user_overview():
+def show_overview():
     st.title("📊 User Overview")
     st.markdown("### High-Level Insights into Customer Demographics and Data.")
     
@@ -19,8 +19,13 @@ def user_overview():
 
     # Plot: Distribution of Users per Cluster
     st.markdown("#### Cluster Distribution")
-    fig = plot_user_overview(df_users)
+    fig = plot_user_distribution(df_users)
     st.plotly_chart(fig)
 
+    # Pie Chart for Clusters
+    st.markdown("#### Cluster Distribution (Pie Chart)")
+    fig_cluster_pie = plot_user_cluster_pie(df_users)
+    st.plotly_chart(fig_cluster_pie)
+
 if __name__ == "__main__":
-    user_overview()
+    show_overview()
